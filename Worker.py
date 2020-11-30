@@ -2,6 +2,9 @@
 import sys
 import json
 import socket
+import threading
+import time
+
 portNo=int(sys.argv[1])
 workerId=int(sys.argv[2])
 
@@ -29,6 +32,32 @@ class Worker:
 with open('config.json') as f:
             data = json.load(f)
 
+class TCPServer:
+    def __init__(self,port):
+        self.port = port
+        self.ip = "localhost"
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+
+    def startserver(self):
+        self.sock.bind((self.ip, self.port))
+        self.sock.listen(1)
+        while True:
+                print('waiting for a connection at ',self.port)
+                connection, clientAddress = self.sock.accept()
+                job=connection.recv(1024)
+                print(f'port {self.port} receives {job}')
+                connection.close()
+    
+
+def send_request():
+    while True:
+    	with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect(("localhost", 5001))
+            time.sleep(2)
+            message='this is message from ' + str(workerClass.workerId)
+            #send task
+            s.send(message.encode())
 
 workers=data['workers']
 workerClass=None
@@ -43,27 +72,15 @@ if(workerClass==None):
     print('Sorry given worker id  does not match with respective port number.Please fill appropriate inputs to the program')
     exit
 else:
+    serverWorker=TCPServer(workerClass.portNo)
+    threads = [threading.Thread(target=serverWorker.startserver), threading.Thread(target=send_request)]
     
-    sock= socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    for th in threads:
+        th.start()
+        print(f'threads {th} started')
+        th.join(0.1)
     
-    serverAddress=("localhost",workerClass.portNo)
-    
-    sock.bind(serverAddress)
-    sock.listen(1)
-    
-    while True:
-        print('waiting for a connection at ',workerClass.portNo)
-        connection, clientAddress = sock.accept()
-        job=connection.recv(1024)
-        print(job)
-        connection.close()
-        # if(job==1):
-        #     success=workerClass.useSlot()
-        #     if(success==0):
-        #         connection.send(workerClass.avaSolts)
-        #     else:
-        #         connection.send('No available slots')
-        #     connection.close()
     
                 
         

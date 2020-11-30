@@ -4,7 +4,9 @@ import json
 import socket
 import random
 import time
+import threading
 
+from numpy.lib.function_base import meshgrid
 
 
 pathToConfig= sys.argv[1]
@@ -58,28 +60,45 @@ def schedulingLeast():
             time.sleep(1)
         else:
             return solWorker
-                
 
-sock5000 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-serverAddress5000=('localhost',5000)
-sock5000.bind(serverAddress5000)
-sock5000.listen(1)
-while True:
-    # Wait for a connection
-    print('waiting for a connection at 5000')
-    connection5000, client_address5000 = sock5000.accept()
-    job=connection5000.recv(1024)
-    clientSocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tempWorker=globalWorkers[1]
-    print('AAAAAAAAAAAAAAAA')
-    print(tempWorker.portNo)
-    clientSocket.connect(("localhost",tempWorker.portNo)) 
-    clientSocket.send(job)
-       
-    
-    print(job)
-    connection5000.close()
+class TCPServer:
+    def __init__(self,port):
+        self.port = port
+        self.ip = "localhost"
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.bind((self.ip, self.port))
+        self.sock.listen(1)
 
+    def startserver(self):
+          while True:
+                print('waiting for a connection at ',self.port)
+                connection, clientAddress = self.sock.accept()
+                job=connection.recv(1024)
+                print(f'port {self.port} receives {job}')
+                connection.close()
+                if(self.port==5000):
+                    tempWorker=globalWorkers[1]
+                    send_request(job,tempWorker.portNo)
+                              
+s5000=TCPServer(5000)
+s5001=TCPServer(5001)
+
+
+def send_request(job,portno):
+    while True:
+    	with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect(("localhost", portno))
+            message=job.decode('utf-8') 
+            message=json.dumps(message)
+            
+            s.send(message.encode())
+
+threads = [threading.Thread(target=s5000.startserver), threading.Thread(target=s5001.startserver)]
+
+for th in threads:
+    th.start()
+    print(f'threads {th} started')
+    th.join(0.1)
 
 
 
