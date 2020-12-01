@@ -36,11 +36,12 @@ with open(pathToConfig) as f:
 workers=data['workers']
 globalWorkers=dict()
 
+
 for i in workers:
     globalWorkers[i['worker_id']]=Worker(i['port'],i['worker_id'],i['slots'])
 
 def schedulingRandom():
-    count=0
+  
     solWorker=random.choice(list(globalWorkers.values()))
     while True:
         
@@ -50,7 +51,7 @@ def schedulingRandom():
             solWorker=random.choice(list(globalWorkers.values()))
 
 def schedulingRound():
-    count=0
+   
     while True:
    
         
@@ -84,9 +85,10 @@ class TCPServer:
         self.sock.bind((self.ip, self.port))
         self.sock.listen(1)
         self.jobQueue=[]
+       
 
     def startserver(self):
-          while True:
+        while True:
                 print('waiting for a connection at ',self.port)
                 connection, clientAddress = self.sock.accept()
                 job=connection.recv(1024)
@@ -99,6 +101,7 @@ class TCPServer:
                 try:
                     fileWrite="received:"+str(analyticMessage['job_id'])+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
                     f.write(fileWrite)
+                    
                 except:
                     print('')
                
@@ -192,6 +195,7 @@ class TCPServer:
                                 if(len(v[1])==0):
                                     fileWrite="completed:"+str(a[0])+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
                                     f.write(fileWrite)
+                                    
                                     break
                                 if(len(v[1])>0):
                                     lock4.acquire()
@@ -217,7 +221,7 @@ class TCPServer:
                                
                     
                    
-                    
+                  
                     
                     
                               
@@ -247,7 +251,21 @@ def send_request(job,worker):
         s.send(message.encode())
         
 f=open("masterJobLogs.txt","a+",buffering=1)
-threads = [threading.Thread(target=s5000.startserver), threading.Thread(target=s5001.startserver)]
+fileOneName=str(schType)+"Logs.txt"
+f1=open(fileOneName,"a+",buffering=1)
+
+def analysisTwo():
+    timeX=0
+    while(True):
+        
+        for k,v in globalWorkers.items():
+            writeContent="time:"+ str(timeX)+";"+ "worker_id:"+str(v.workerId)+";"+"jobs_running:"+str(v.noSlots-v.avaSlots)+'\n'
+            f1.write(writeContent)
+        timeX+=1
+        time.sleep(1)
+    
+
+threads = [threading.Thread(target=s5000.startserver), threading.Thread(target=s5001.startserver),threading.Thread(target=analysisTwo)]
 
 
 for th in threads:
