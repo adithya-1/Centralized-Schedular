@@ -77,7 +77,7 @@ def send_request():
     while(True):
         
         for k,v in workerClass.slotJobs.items():
-            time.sleep(1)
+            
             if(v[1]==0 and v[2]!=''):
                 jobCompleted=v[2]
                 lock2.acquire()
@@ -98,7 +98,8 @@ def send_request():
                 lock3.acquire()
                 v[1]-=1
                 lock3.release()
-         
+        
+        time.sleep(1)
 workers=data['workers']
 workerClass=None
 for i in range(0,len(workers)):
