@@ -5,8 +5,7 @@ import socket
 import random
 import time
 import threading
-
-from numpy.lib.function_base import meshgrid
+import datetime
 
 lock1=threading.Lock()
 lock2=threading.Lock()
@@ -93,7 +92,17 @@ class TCPServer:
                 job=connection.recv(1024)
                 self.jobQueue.append(job)
                 print(f'port {self.port} receives {job} from {clientAddress}')
-                connection.close()           
+                connection.close()      
+                analyticMessage=job.decode('utf-8')
+                analyticMessage=json.loads(analyticMessage)
+               
+                try:
+                    fileWrite="received:"+str(analyticMessage['job_id'])+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
+                    f.write(fileWrite)
+                except:
+                    print('')
+               
+                     
                 individualJob=self.jobQueue.pop(0)
                 
                 
@@ -170,7 +179,7 @@ class TCPServer:
                                     if(tempWorker!=None):
                                         send_request(reducerJob,tempWorker)
                                     break
-                                    
+
                                     
                     
                     elif(a[2]=='R'):
@@ -180,6 +189,10 @@ class TCPServer:
                                 break
                         for k,v in globalJobContent.items():
                             if(v[2]):
+                                if(len(v[1])==0):
+                                    fileWrite="completed:"+str(a[0])+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
+                                    f.write(fileWrite)
+                                    break
                                 if(len(v[1])>0):
                                     lock4.acquire()
                                     reducerJob=v[1].pop(0)
@@ -195,6 +208,9 @@ class TCPServer:
                                     if(tempWorker!=None):
                                         send_request(reducerJob,tempWorker)
                                     break
+                            # if(len(v[1])==0):
+                            #         fileWrite="completed:"+str(a[0])+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
+                            #         f.write(fileWrite)
                         
                     else:
                         print('Error in 200')
@@ -229,8 +245,10 @@ def send_request(job,worker):
             
         print(f'sending {message} to {worker.portNo}')   
         s.send(message.encode())
-
+        
+f=open("masterJobLogs.txt","a+",buffering=1)
 threads = [threading.Thread(target=s5000.startserver), threading.Thread(target=s5001.startserver)]
+
 
 for th in threads:
     th.start()

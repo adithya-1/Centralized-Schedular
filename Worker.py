@@ -4,6 +4,7 @@ import json
 import socket
 import threading
 import time
+import datetime
 
 portNo=int(sys.argv[1])
 workerId=int(sys.argv[2])
@@ -11,6 +12,7 @@ workerId=int(sys.argv[2])
 lock1=threading.Lock()
 lock2=threading.Lock()
 lock3=threading.Lock()
+
 class Worker:
     def __init__(self,portNo,workerId,noSlots):
         self.portNo=portNo
@@ -69,7 +71,12 @@ class TCPServer:
                         v[1]= int(message["duration"])
                         v[2]=message["task_id"] 
                         break  
-                lock1.release()         
+                        
+                lock1.release() 
+                fileWrite="received:"+str(message['task_id'])+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
+                print(fileWrite)
+                f.write(fileWrite)  
+              
                     
 
 def send_request():
@@ -84,13 +91,17 @@ def send_request():
                 workerClass.avaSolts+=1
                 v[2]=''
                 v[0]=True
+                 
                 lock2.release()
+                fileWrite="completed:"+str(jobCompleted)+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
+                f.write(fileWrite) 
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.connect(("localhost", 5001))
                     message={"worker_id":workerClass.workerId,"avaSlots":workerClass.avaSolts,"slotJobs":v,"slot_id":k,"jobCompleted":jobCompleted}
                        
                     print(f'sending {message} to {5001}') 
                     message=json.dumps(message)
+                    
                     #send task
                     s.send(message.encode())
             elif(v[1]>0):
@@ -113,6 +124,11 @@ if(workerClass==None):
     print('Sorry given worker id  does not match with respective port number.Please fill appropriate inputs to the program')
     exit
 else:
+    fileName='workerLogs'+str(workerClass.portNo)+'.txt'
+    
+    
+    f=open(fileName,"a+",buffering=1)
+    
     serverWorker=TCPServer(workerClass.portNo)
 
     threads = [threading.Thread(target=serverWorker.startserver), threading.Thread(target=send_request)]
