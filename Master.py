@@ -10,6 +10,8 @@ from numpy.lib.function_base import meshgrid
 
 lock1=threading.Lock()
 lock2=threading.Lock()
+lock3=threading.Lock()
+lock4=threading.Lock()
 pathToConfig= sys.argv[1]
 schType=sys.argv[2]
 
@@ -34,6 +36,7 @@ with open(pathToConfig) as f:
 
 workers=data['workers']
 globalWorkers=dict()
+
 for i in workers:
     globalWorkers[i['worker_id']]=Worker(i['port'],i['worker_id'],i['slots'])
 
@@ -89,7 +92,7 @@ class TCPServer:
                 connection, clientAddress = self.sock.accept()
                 job=connection.recv(1024)
                 self.jobQueue.append(job)
-                print(f'port {self.port} receives {job}')
+                print(f'port {self.port} receives {job} from {clientAddress}')
                 connection.close()           
                 individualJob=self.jobQueue.pop(0)
                 
@@ -107,6 +110,8 @@ class TCPServer:
                     for i in message['reduce_tasks']:
                         subList.append([i['task_id'],i['duration'],False])
                     globalJobContent[message['job_id']].append(subList)
+                    
+                    globalJobContent[message['job_id']].append(False)
                     
                     for i in globalJobContent[message['job_id']][0]:
                         tempWorker=None
@@ -147,28 +152,52 @@ class TCPServer:
                                 startReducer=True
                         print(startReducer)
                         if(startReducer):
-                            for i in globalJobContent[a[0]][1]:
-                                tempWorker=None
-                                print(i)
-                                if(schType=='RANDOM'):
-                                    tempWorker=schedulingRandom()
-                                elif(schType=='RR'):
-                                    tempWorker=schedulingRound()
-                                elif(schType=='LL'):
-                                    tempWorker=schedulingLeast()
-                        
-                                # tempWorker=globalWorkers[1]
-                                
-                                if(tempWorker!=None):
-                                    send_request(i,tempWorker)
+                            globalJobContent[a[0]][2]=True
+                        for k,v in globalJobContent.items():
+                            if(v[2]):
+                                if(len(v[1])>0):
+                                    lock3.acquire()
+                                    reducerJob=v[1].pop(0)
+                                    lock3.release()
+                                    tempWorker=None
+                                    if(schType=='RANDOM'):
+                                        tempWorker=schedulingRandom()
+                                    elif(schType=='RR'):
+                                        tempWorker=schedulingRound()
+                                    elif(schType=='LL'):
+                                        tempWorker=schedulingLeast()
+                                    
+                                    if(tempWorker!=None):
+                                        send_request(reducerJob,tempWorker)
+                                    break
+                                    
+                                    
                     
                     elif(a[2]=='R'):
                         for i in globalJobContent[a[0]][1]:
                             if(i[0]==message['jobCompleted']):
                                 i[2]=True
                                 break
+                        for k,v in globalJobContent.items():
+                            if(v[2]):
+                                if(len(v[1])>0):
+                                    lock4.acquire()
+                                    reducerJob=v[1].pop(0)
+                                    lock4.release()
+                                    tempWorker=None
+                                    if(schType=='RANDOM'):
+                                        tempWorker=schedulingRandom()
+                                    elif(schType=='RR'):
+                                        tempWorker=schedulingRound()
+                                    elif(schType=='LL'):
+                                        tempWorker=schedulingLeast()
+                                    
+                                    if(tempWorker!=None):
+                                        send_request(reducerJob,tempWorker)
+                                    break
+                        
                     else:
-                        print('Error in 153')
+                        print('Error in 200')
                                
                     
                    
