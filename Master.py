@@ -63,6 +63,7 @@ def schedulingRandom():
             lock5.release()
             return solWorker
         else:
+            lock5.release()
             time.sleep(1)
             solWorker=random.choice(list(globalWorkers.values()))
 
@@ -74,7 +75,7 @@ def schedulingRound():
             
             print("Available Slots= ",globalWorkers[k].avaSlots)
             lock5.acquire()
-            if(globalWorkers[k].avaSlots>1):
+            if(globalWorkers[k].avaSlots>0):
                 
                 globalWorkers[k].avaSlots-=1
                 lock5.release()
@@ -183,7 +184,9 @@ class TCPServer:
                     #boolean value to that signifies whether reducer job is completed or not
                     globalJobContent[message['job_id']].append(False)
                     #finding worker based on scheduling alogrithm for map tasks
-                    for i in globalJobContent[message['job_id']][0]:
+                    i=0
+                    while(i<len(globalJobContent[message['job_id']][0])):
+                  
                         tempWorker=None
                         if(schType=='RANDOM'):
                             tempWorker=schedulingRandom()
@@ -194,8 +197,15 @@ class TCPServer:
                         
                         #after the worker is returned based on scheduling algorithm sending request to that worker
                         if(tempWorker!=None):
-                            send_request(i,tempWorker)
-                            # time.sleep(1)
+                            #checking again if that worker has available slots before sending
+                            if(tempWorker.avaSlots>0):
+                                
+                                send_request(globalJobContent[message['job_id']][0][i],tempWorker)
+                                i+=1
+                            
+                            
+                                
+                           
                 
                 #function to receive message from workers        
                 if(self.port==5001):
@@ -258,7 +268,7 @@ class TCPServer:
 
                         if(completeReducer):
                             lock3.acquire()
-                            #inidicating reducer functions have been started in global job list
+                            #indicating reducer functions have been completed in the global list
                             globalJobContent[a.split('_')[0]][3]=True
                             lock3.release()
                             
@@ -306,25 +316,21 @@ def startReducer():
                                             tempWorker=schedulingLeast()
                                         
                                         if(tempWorker!=None):
-                                            #changing value to true since task was sent
-                                            v[1][count][3]=True
-                                            # lock6.acquire()
-                                            # tempWorker.avaSlots-=1
-                                            # lock6.release()
-                                             #send the request
-                                            send_request(reducerJob,tempWorker)
+                                            
+                                            
+                                            
+                                            if(tempWorker.avaSlots>0):
+                                                #changing value to true since task was sent
+                                                v[1][count][3]=True
+                                                
+                                                send_request(reducerJob,tempWorker)
                                         break
                                         
                                     count+=1
         
         except:
             print('')                         
-                                
-
-            
-        
-                         
-                    
+                                                   
                     
 #initialising TCP server at 5000                             
 s5000=TCPServer(5000)
@@ -333,7 +339,7 @@ s5001=TCPServer(5001)
 
 #send request function
 def send_request(job,worker):
-    #acquring locks to change number of availabe slots
+    #acquring locks to change slot jobs value
     lock1.acquire()
     
     #changing the message as per requirement

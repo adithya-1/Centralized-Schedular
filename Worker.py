@@ -27,22 +27,6 @@ class Worker:
         self.slotJobs=dict()
         for i in range(1,self.noSlots+1):        #First Bool value specifies available slots, second parameter indicates duration and third parameter indicates task_id
             self.slotJobs[i]=[True,0,'']
-            
-        
-        
-    def useSlot(self):
-        #Throw error if there are no slots available for the worker
-        if(self.avaSolts==0):
-            print('Error in 26')
-        else:      # Subtract a slot when worker is alloted tasks
-            self.avaSolts-=self.avaSolts
-            
-    
-    def releaseSlot(self):
-        if(not (self.avaSolts>=self.noSlots)):      # Once task is done executing, slot is made free again
-            self.avaSolts+=1
-        else:
-            print('Error in 35')     #Throw an error if slot numbers exceeds allocated slots for the worker
 
 
 #Loading data from the config file
@@ -73,15 +57,25 @@ class TCPServer:
                 #Accessing job parameters from job data by loading into json
                 message=job.decode('utf-8')
                 message=json.loads(message)
+                
                 lock1.acquire()      #Consume a lock for the job
                 workerClass.avaSolts-=1     #Consume a slot for the job
-                for k,v in workerClass.slotJobs.items():      #Changing slot parameters of the worker when job gets assigned
-                    if(v[0]):
-                        v[0]=False      #Changing slot status for be not free
-                        v[1]= int(message["duration"])
-                        v[2]=message["task_id"] 
-                        break  
-                        
+                while True:
+                    count=0
+                    for k,v in workerClass.slotJobs.items():      #Changing slot parameters of the worker when job gets assigned
+                        if(v[0]):
+                            v[0]=False      #Changing slot status for be not free
+                            v[1]= int(message["duration"])
+                            v[2]=message["task_id"] 
+                            break 
+                        else:
+                            count+=1
+                    #condition satisfied when woker slot gets assigned a job and breaks from while loop
+                    if(count!=workerClass.noSlots):
+                        break
+                
+                     
+                
                 lock1.release()     #Release lock after initiation of job
                 connection.close()
                 
