@@ -66,12 +66,12 @@ class TCPServer:
                 print('waiting for a connection at ',self.port)
                 connection, clientAddress = self.sock.accept()
                 job=connection.recv(1024)     #Getting job data from TCP socket
-                self.jobQueue.append(job)      #Appending the received job into the job queue
-                connection.close()
+                     #Appending the received job into the job queue
+                
                 print(f'port {self.port} receives {job}')      #Displaying job reveceived
-                individualJob=self.jobQueue.pop(0)
+               
                 #Accessing job parameters from job data by loading into json
-                message=individualJob.decode('utf-8')
+                message=job.decode('utf-8')
                 message=json.loads(message)
                 lock1.acquire()      #Consume a lock for the job
                 workerClass.avaSolts-=1     #Consume a slot for the job
@@ -83,6 +83,7 @@ class TCPServer:
                         break  
                         
                 lock1.release()     #Release lock after initiation of job
+                connection.close()
                 
                 #Send the time since epoch for received task into a file for logs analysis
                 fileWrite="received:"+str(message['task_id'])+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
@@ -97,6 +98,7 @@ def send_request():
         #Changing slot variabels on completion of task
         for k,v in workerClass.slotJobs.items():
             #If duration is 0 i,e when task is completed
+            
             if(v[1]==0 and v[2]!=''):
                 jobCompleted=v[2]    #Add task to completed task list
                 lock2.acquire()      #Consume another lock
@@ -120,7 +122,7 @@ def send_request():
                     s.send(message.encode())
                     
             elif(v[1]>0):      #If task is not completed, then sleep for 1 second and decrease the duration for the task
-                
+                print(v)
                 lock3.acquire()
                 v[1]-=1
                 lock3.release()

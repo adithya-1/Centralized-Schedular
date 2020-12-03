@@ -14,6 +14,8 @@ lock1=threading.Lock()
 lock2=threading.Lock()
 lock3=threading.Lock()
 lock4=threading.Lock()
+lock5=threading.Lock()
+lock6=threading.Lock()
 
 #getting arguments from user
 pathToConfig= sys.argv[1]
@@ -54,10 +56,14 @@ for i in workers:
 def schedulingRandom():
     solWorker=random.choice(list(globalWorkers.values()))
     while True:
-        
+        lock5.acquire()
         if(solWorker.avaSlots>0):
+            
+            solWorker.avaSlots-=1
+            lock5.release()
             return solWorker
         else:
+            time.sleep(1)
             solWorker=random.choice(list(globalWorkers.values()))
 
 #Round Robin Scheduling Algorithm - sorts the workers based on id and checks if slots are avaiable accordingly
@@ -65,9 +71,18 @@ def schedulingRound():
     while True:
         temp=sorted (globalWorkers.keys())
         for k in temp:
-        
-            if(globalWorkers[k].avaSlots>0):
+            
+            print("Available Slots= ",globalWorkers[k].avaSlots)
+            lock5.acquire()
+            if(globalWorkers[k].avaSlots>1):
+                
+                globalWorkers[k].avaSlots-=1
+                lock5.release()
+                
                 return globalWorkers[k]
+            else:
+                lock5.release()
+                time.sleep(1)
 
 #Least- Loaded Scheduling Algorithm - checks for the worker with most available slots.If no slots are available then waits for one second before checking again
 def schedulingLeast():
@@ -83,6 +98,9 @@ def schedulingLeast():
         if(maxAva==0):
             time.sleep(1)
         else:
+            lock5.acquire()
+            solWorker.avaSlots-=1
+            lock5.release()
             return solWorker
 
 #To check list of jobs to be processed
@@ -150,17 +168,20 @@ class TCPServer:
                     #first appending map tasks
                     subList=list()
                     for i in message['map_tasks']:
+                        #taskId,duration,completedOrNot
                         subList.append([i['task_id'],i['duration'],False])
                     globalJobContent[message['job_id']].append(subList)
                     #second appending reducer tasks
                     subList=list()
                     for i in message['reduce_tasks']:
-                        subList.append([i['task_id'],i['duration'],False])
+                        #taskId,duration,completedOrNot,sentOrNot
+                        subList.append([i['task_id'],i['duration'],False,False])
                     globalJobContent[message['job_id']].append(subList)
                     
                     #boolean value to that signifies whether to start reducer or not
                     globalJobContent[message['job_id']].append(False)
-                    
+                    #boolean value to that signifies whether reducer job is completed or not
+                    globalJobContent[message['job_id']].append(False)
                     #finding worker based on scheduling alogrithm for map tasks
                     for i in globalJobContent[message['job_id']][0]:
                         tempWorker=None
@@ -171,10 +192,10 @@ class TCPServer:
                         elif(schType=='LL'):
                             tempWorker=schedulingLeast()
                         
-                       
                         #after the worker is returned based on scheduling algorithm sending request to that worker
                         if(tempWorker!=None):
                             send_request(i,tempWorker)
+                            # time.sleep(1)
                 
                 #function to receive message from workers        
                 if(self.port==5001):
@@ -188,104 +209,121 @@ class TCPServer:
                     globalWorkers[message['worker_id']].slotJobs[message['slot_id']]=message['slotJobs']
                     #releasing the jobs
                     lock2.release()
-                    
+      
                     #seeing whch job got completed
                     a=message['jobCompleted']
                     #if the job is a mapper task
-                    if(a[2]=='M'):
+                    if(a.split('_')[1][0]=='M'):
                         
                         #updating that mapper task is completed in global job list
-                        for i in globalJobContent[a[0]][0]:
+                        for i in globalJobContent[a.split('_')[0]][0]:
                             if(i[0]==message['jobCompleted']):
                                 i[2]=True
                                 break
                         
-                        #checking to see if reducer fnction can start or not   
+                        #checking to see if reducer function can start or not   
                         startReducer=False
-                        for i in globalJobContent[a[0]][0]:
+                        for i in globalJobContent[a.split('_')[0]][0]:
                             if(i[2]==False):
                                 startReducer=False
                                 break
                             else:
                                 startReducer=True
                                 
-                        print(startReducer)
                         #if reducer to be started
                         if(startReducer):
+                            lock4.acquire()
                             #inidicating reducer functions have been started in global job list
-                            globalJobContent[a[0]][2]=True
-                        for k,v in globalJobContent.items():
-                            #if for that particular job reducer is started
-                            if(v[2]):
-                                #if there are reducer tasks pending
-                                if(len(v[1])>0):
-                                    #acquire lock to get which reducer function to be sent
-                                    lock3.acquire()
-                                    #poping the first reducer in the list
-                                    reducerJob=v[1].pop(0)
-                                    #releasing the lock 
-                                    lock3.release()
-                                    #finding worker based on scheduling alogrithm for reduce tasks
-                                    tempWorker=None
-                                    if(schType=='RANDOM'):
-                                        tempWorker=schedulingRandom()
-                                    elif(schType=='RR'):
-                                        tempWorker=schedulingRound()
-                                    elif(schType=='LL'):
-                                        tempWorker=schedulingLeast()
-                                    
-                                    if(tempWorker!=None):
-                                        #send the request
-                                        send_request(reducerJob,tempWorker)
-                                    #send only ne reduce task per loop
-                                    break
-
+                            globalJobContent[a.split('_')[0]][2]=True
+                            lock4.release()
+                            
+                    
+                            
                                     
                     #if message is a reducer
-                    elif(a[2]=='R'):
-                        #updating global job list
-                        for i in globalJobContent[a[0]][1]:
+                    elif(a.split('_')[1][0]=='R'):
+                        # updating global job list
+                        for i in globalJobContent[a.split('_')[0]][1]:
                             if(i[0]==message['jobCompleted']):
                                 i[2]=True
                                 break
+                        #checking if all  reducer jobs are completed
+                        completeReducer=False
+                        for i in globalJobContent[a.split('_')[0]][1]:
+                            if(i[2]==False):
+                                completeReducer=False
+                                break
+                            else:
+                                completeReducer=True
+
+                        if(completeReducer):
+                            lock3.acquire()
+                            #inidicating reducer functions have been started in global job list
+                            globalJobContent[a.split('_')[0]][3]=True
+                            lock3.release()
                             
-                        for k,v in globalJobContent.items():
-                            #if for that particular job reducer is started
-                            if(v[2]):
-                                #if all the reduce task have been completed
-                                if(len(v[1])==0):
-                                    fileWrite="completed:"+str(a[0])+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
-                                    f.write(fileWrite)
-                                    
-                                    break
-                                #if there are reducer tasks pending
-                                if(len(v[1])>0):
-                                    #acquire lock to get which reducer function to be sent
-                                    lock4.acquire()
-                                    #poping the first reducer in the list
-                                    reducerJob=v[1].pop(0)
-                                    #releasing the lock 
-                                    lock4.release()
-                                    #finding worker based on scheduling alogrithm for reduce tasks
-                                    tempWorker=None
-                                    if(schType=='RANDOM'):
-                                        tempWorker=schedulingRandom()
-                                    elif(schType=='RR'):
-                                        tempWorker=schedulingRound()
-                                    elif(schType=='LL'):
-                                        tempWorker=schedulingLeast()
-                                    
-                                    if(tempWorker!=None):
-                                        send_request(reducerJob,tempWorker)
-                                    break
+                            
+                      
+                            fileWrite="completed:"+str(a.split('_')[0])+","+str(datetime.datetime.now().timestamp() * 1000)+"\n"
+                            f.write(fileWrite)
+                                   
+                               
+                               
                         
                     else:
                         #used for debugging purpose
                         print('Error in line 284')
-                               
                     
+                     
                    
-                  
+
+def startReducer():
+    while True:
+        #using try except since dictionary values keep changing
+        try:
+            for k,v in globalJobContent.items():
+            #if all the reducer tasks are completed or not
+                        if(not v[3]):
+            #if for that particular job reducer is started
+                            if(v[2]):
+                                count=0
+                                
+                               
+                                while(count<len(v[1])):
+                                    #checking if reducer task was sent before or not
+                                    if(not v[1][count][3]):
+                                       
+                                        reducerJob=v[1][count]
+                                       
+
+                                        #finding worker based on scheduling alogrithm for reduce tasks
+                                        tempWorker=None
+                                        if(schType=='RANDOM'):
+                                            tempWorker=schedulingRandom()
+                                        elif(schType=='RR'):
+                                            tempWorker=schedulingRound()
+                                        elif(schType=='LL'):
+                                            tempWorker=schedulingLeast()
+                                        
+                                        if(tempWorker!=None):
+                                            #changing value to true since task was sent
+                                            v[1][count][3]=True
+                                            # lock6.acquire()
+                                            # tempWorker.avaSlots-=1
+                                            # lock6.release()
+                                             #send the request
+                                            send_request(reducerJob,tempWorker)
+                                        break
+                                        
+                                    count+=1
+        
+        except:
+            print('')                         
+                                
+
+            
+        
+                         
                     
                     
 #initialising TCP server at 5000                             
@@ -297,7 +335,7 @@ s5001=TCPServer(5001)
 def send_request(job,worker):
     #acquring locks to change number of availabe slots
     lock1.acquire()
-    worker.avaSlots-=1
+    
     #changing the message as per requirement
     x=job
     job={"task_id":x[0],"duration":x[1]}
@@ -337,7 +375,7 @@ def analysisTwo():
         time.sleep(1)
     
 #initiating threading for parallelism
-threads = [threading.Thread(target=s5000.startserver), threading.Thread(target=s5001.startserver),threading.Thread(target=analysisTwo)]
+threads = [threading.Thread(target=s5000.startserver), threading.Thread(target=s5001.startserver),threading.Thread(target=analysisTwo),threading.Thread(target=startReducer)]
 
 
 for th in threads:
