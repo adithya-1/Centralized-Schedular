@@ -66,13 +66,13 @@ for line in f:
 
 for k ,v in analysisDict.items():
     
-    print(k,v)
+    # print(k,v)
 
-    # analysisDict[k]=abs(v[1]-v[0])/1000
+    analysisDict[k]=abs(v[1]-v[0])/1000
 
-    # time_list.append(analysisDict[k])     #Appending the completion time into list
+    time_list.append(analysisDict[k])     #Appending the completion time into list
 
-    # task_list.append(k)                 #Appending the task name into task_list
+    task_list.append(k)                 #Appending the task name into task_list
 
 
 

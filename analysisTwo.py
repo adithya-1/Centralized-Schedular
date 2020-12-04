@@ -1,6 +1,7 @@
 
 import matplotlib.pyplot as plt
 import sys
+import seaborn
 x1=[]
 y1=[]
 y2=[]
@@ -30,6 +31,9 @@ for line in f:
 plt.plot(x1,y1,label='worker1')
 plt.plot(x1,y2,label='worker2')
 plt.plot(x1,y3,label='worker3')
+# data=[x1,y1]
+
+# heatmap=seaborn.heatmap(data)
 
 plt.xlabel('time')
 plt.ylabel('tasks')
