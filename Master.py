@@ -73,7 +73,7 @@ def schedulingRound():
         temp=sorted (globalWorkers.keys())
         for k in temp:
             
-            print("Available Slots= ",globalWorkers[k].avaSlots)
+            # print("Available Slots= ",globalWorkers[k].avaSlots)
             lock5.acquire()
             if(globalWorkers[k].avaSlots>0):
                 
@@ -83,8 +83,8 @@ def schedulingRound():
                 return globalWorkers[k]
             else:
                 lock5.release()
-                time.sleep(1)
-
+                # time.sleep(1)
+        time.sleep(1)
 #Least- Loaded Scheduling Algorithm - checks for the worker with most available slots.If no slots are available then waits for one second before checking again
 def schedulingLeast():
     temp=list(globalWorkers.values())
