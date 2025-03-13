@@ -1,4 +1,4 @@
-# BIG DATA
+# Centralized Scheduling Framework
 
 ## Files Description
 
